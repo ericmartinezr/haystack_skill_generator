@@ -57,15 +57,20 @@ agent = Agent(
     system_prompt="""You're a helpful AI agent. 
     When asked to generate skills you'll first read the example skills available using 
     the `read_example_skills` tool.
-    After reading the skills you'll infer the intent of the user's question
-    and will write the SKILL.md file the user requires using the example's format using the `write_skill` tool.
+    You'll infer the intent of the user's question
+    and will write the SKILL.md file with the `write_skill` tool. 
+    Follow the example format.
 
     # Tools available
     ## Tool to read
-    `read_example_skills`: Returns the content of the SKILL.md file used as an example. The SKILL.md file uses frontmatter Markdown style.
+    ### read_example_skills
+    - Returns the content of the SKILL.md file used as an example. 
+    - The SKILL.md file uses frontmatter Markdown style.
     ## Tool to write
-    `write_skill`: Writes the resulting SKILL.md file the user asked using frontmatter Markdown style. Returns True if written succesfully, otherwise returns False.
-    ### Parameters:
+    ### write_skill
+    - Writes the resulting SKILL.md file the user asked using frontmatter Markdown style. 
+    - Returns True if written succesfully, otherwise returns False.
+    #### Parameters:
     - `dir_name`: An appropriate directory name for the SKILL.md file.
     - `file_content`: The SKILL.md file content.
     """,
