@@ -1,83 +1,82 @@
 import os
-from haystack.components.agents import Agent
-from haystack.dataclasses import ChatMessage
-from haystack.tools import tool
+from pathlib import Path
+from haystack import Pipeline, tracing
+from haystack_integrations.components.connectors.langfuse import LangfuseConnector
 from haystack_integrations.components.generators.ollama import OllamaChatGenerator
+from haystack.dataclasses import ChatMessage
+from haystack.components.agents import Agent
+from dotenv import load_dotenv
+
+# Tools
+from tools.create_skills import create_skill
+from tools.read_skill import read_skill
+from tools.command_runner import command_runner
+from tools.find_skill import find_skill
+
+load_dotenv()
 
 
-EXAMPLE_SKILLS_DIR = "example_skills"
-SKILLS_DIR = "skills"
+tracing.tracer.is_content_tracing_enabled = True
 
 
-@tool
-def read_example_skills() -> str:
-    """
-    Reads the example skills for adding to LLM's context
+# "nemotron-3-nano"
+chat_generator = OllamaChatGenerator(
+    model="kimi-k2.5:cloud",
+    timeout=360,
+    generation_kwargs={
+        "temperature": 0.1
+    }
+)
 
-    Returns:
-    - Returns the content of the file
-    """
-    for root, _, files in os.walk(EXAMPLE_SKILLS_DIR):
-        for file in files:
-            skill_path = os.path.join(root, file)
-            with open(skill_path, "r") as f:
-                return f.read()
+system_prompt = """You are a helpful AI agent expert in using and creating "Skills".
 
+## Workflow
+1. **Analyze** the user request.
+2. **Find** if a relevant SKILL exists using the `find_skill` tool.
+    - If a relevant SKILL exists, proceed to step 4.
+    - If NO relevant SKILL exists, proceed to step 3.
+3. **Create** a new SKILL using the `create_skill` tool.
+    - Provide a concise query to the tool to generate the skill (e.g., "create a skill for managing docker containers").
+4. **Read** the content of the SKILL using the `read_skill` tool (arguments `sources` [list with the file path] and `query` [the query to search for the most relevant data])
+    - You MUST read the skill before using it.
+5. **Execute** the task using the instructions and commands found in the SKILL.
+    - Use the `command_runner` tool to execute commands.
+    - If the skill suggests a Python script, you can write it to a file (using echo or printf command via command_runner) and run it.
+    - STRICTLY FOLLOW the syntax and examples provided in the SKILL.md.
 
-@tool
-def write_skill(dir_name: str, file_content: str) -> bool:
-    """
-    Writes a SKILL.md file using frontmatter Markdown style
+## Constraints
+- Do not ask the user for clarification unless absolutely necessary. Attempt to solve it with the tools.
+- If the SKILL implementation requires multiple steps, perform them.
+- Always report back a brief and concise summary of the result to the user.
+"""
 
-    Arguments:
-    - dir_name (str): The directory where the SKILL.md will be placed
-    - file_content (str): The content of the SKILL.md file
-
-    Returns:
-    - If written succesfully returns True, otherwise returns FALSE
-    """
-    try:
-        # Creates the directoy
-        dir_path = os.path.join(SKILLS_DIR, dir_name)
-        os.makedirs(dir_path, exist_ok=False)
-
-        # Writes the file
-        file_path = os.path.join(dir_path, "SKILL.md")
-        with open(file_path, "w") as f:
-            content_written = f.write(file_content)
-
-        return content_written > 0
-    except Exception as e:
-        return False
-
-
-chat_generator = OllamaChatGenerator(model="kimi-k2.5:cloud")
 agent = Agent(
     chat_generator=chat_generator,
-    system_prompt="""You're a helpful AI agent. 
-    When asked to generate skills you'll first read the example skills available using 
-    the `read_example_skills` tool.
-    You'll infer the intent of the user's question
-    and will write the SKILL.md file with the `write_skill` tool. 
-    Follow the example format.
-
-    # Tools available
-    ## Tool to read
-    ### read_example_skills
-    - Returns the content of the SKILL.md file used as an example. 
-    - The SKILL.md file uses frontmatter Markdown style.
-    ## Tool to write
-    ### write_skill
-    - Writes the resulting SKILL.md file the user asked using frontmatter Markdown style. 
-    - Returns True if written succesfully, otherwise returns False.
-    #### Parameters:
-    - `dir_name`: An appropriate directory name for the SKILL.md file.
-    - `file_content`: The SKILL.md file content.
-    """,
-    tools=[read_example_skills, write_skill]
+    tools=[find_skill, create_skill, read_skill, command_runner],
+    max_agent_steps=12,
+    system_prompt=system_prompt,
+    exit_conditions=["text"]
 )
 
-user_message = ChatMessage.from_user(
-    "Write a SKILL.md file for AI's to read to assist on writing Machine Learning"
-)
-response = agent.run(messages=[user_message])
+pipeline = Pipeline(max_runs_per_component=1)
+pipeline.add_component("tracer", LangfuseConnector("Haystack Skill Generator"))
+pipeline.add_component("main_agent", agent)
+pipeline.draw(path=Path("pipeline.png"))
+
+
+def run_agent(query: str):
+    print(f"Agent running with query: {query}")
+    response = pipeline.run(data={
+        "main_agent": {
+            "messages": [ChatMessage.from_user(query)]
+        }
+    })
+
+    last_message = response["main_agent"]["messages"][-1]
+    print("\nAgent Response:\n")
+    print(last_message.text)
+
+
+if __name__ == "__main__":
+    user_query = "Read all the python files in the /home/eric/haystack-skill-generator folder and create a text file with the count of every word"
+    run_agent(user_query)
