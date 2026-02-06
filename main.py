@@ -78,5 +78,5 @@ def run_agent(query: str):
 
 
 if __name__ == "__main__":
-    user_query = "Read all the python files in the /home/eric/haystack-skill-generator folder and create a text file with the count of every word"
+    user_query = "Use the bc application to do simple math and save the result to a file"
     run_agent(user_query)

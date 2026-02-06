@@ -11,22 +11,17 @@ from haystack.dataclasses.byte_stream import ByteStream
 from tools.read_example_skills import read_example_skills
 from tools.write_skill import write_skill
 
-
-# Este???
-# https://haystack.deepset.ai/tutorials/43_building_a_tool_calling_agent
-# https://docs.haystack.deepset.ai/docs/supercomponents#example-1
-
 chat_generator = OllamaChatGenerator(
     model="kimi-k2.5:cloud",
     timeout=360,
 )
-
 
 agent = Agent(
     chat_generator=chat_generator,
     system_prompt="""You're a helpful AI agent expert on Skills designed by Anthropic. 
     Your job is to create a SKILL.md based on the user query using the `read_example_skills` tool and the SKILLs definition as reference.
     Write the SKILL.md file with the tool `write_skill`.
+    Make it concise and simple.
 
     # Tools available
     1. `read_example_skills`: Tool to read the example SKILL.md file
