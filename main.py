@@ -12,6 +12,7 @@ from tools.create_skills import create_skill
 from tools.read_skill import read_skill
 from tools.command_runner import command_runner
 from tools.find_skill import find_skill
+from constants import CHAT_GENERATOR_MODEL
 
 load_dotenv()
 
@@ -21,8 +22,8 @@ tracing.tracer.is_content_tracing_enabled = True
 
 # "nemotron-3-nano"
 chat_generator = OllamaChatGenerator(
-    model="kimi-k2.5:cloud",
-    timeout=360,
+    model=CHAT_GENERATOR_MODEL,
+    timeout=480,
     generation_kwargs={
         "temperature": 0.1
     }
@@ -37,9 +38,11 @@ system_prompt = """You are a helpful AI agent expert in using and creating "Skil
     - If NO relevant SKILL exists, proceed to step 3.
 3. **Create** a new SKILL using the `create_skill` tool.
     - Provide a concise query to the tool to generate the skill (e.g., "create a skill for managing docker containers").
-4. **Read** the content of the SKILL using the `read_skill` tool (arguments `sources` [list with the file path] and `query` [the query to search for the most relevant data])
-    - You MUST read the skill before using it.
-5. **Execute** the task using the instructions and commands found in the SKILL.
+4. **Convert** the file paths from step 3 into a list for step 5
+5. **Read** the content of the SKILLs using the `read_skill` tool. Call this tool ONLY ONE TIME.
+    - Use the file paths from step 4 as argument.
+    - You MUST read the skills before using them.
+6. **Execute** the task using the instructions and commands found in the SKILL.
     - Use the `command_runner` tool to execute commands.
     - If the skill suggests a Python script, you can write it to a file (using echo or printf command via command_runner) and run it.
     - STRICTLY FOLLOW the syntax and examples provided in the SKILL.md.
@@ -78,5 +81,5 @@ def run_agent(query: str):
 
 
 if __name__ == "__main__":
-    user_query = "Use the bc application to do simple math and save the result to a file"
+    user_query = "list the python files in the folder /home/eric/haystack-skill-generator and save them to a PDF file"
     run_agent(user_query)

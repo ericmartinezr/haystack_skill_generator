@@ -10,18 +10,27 @@ from haystack.components.builders.chat_prompt_builder import ChatPromptBuilder
 from haystack.dataclasses.byte_stream import ByteStream
 from tools.read_example_skills import read_example_skills
 from tools.write_skill import write_skill
+from constants import CHAT_GENERATOR_MODEL
 
 chat_generator = OllamaChatGenerator(
-    model="kimi-k2.5:cloud",
+    model=CHAT_GENERATOR_MODEL,
     timeout=360,
 )
 
 agent = Agent(
     chat_generator=chat_generator,
     system_prompt="""You're a helpful AI agent expert on Skills designed by Anthropic. 
-    Your job is to create a SKILL.md based on the user query using the `read_example_skills` tool and the SKILLs definition as reference.
-    Write the SKILL.md file with the tool `write_skill`.
-    Make it concise and simple.
+    Your job is to identify the SKILLs in the user query and create a SKILL.md file for each one.
+    A SKILL is anything that can be converted to code and reused.
+    
+    # Workflow
+    1. Identify the SKILLs
+    - For example: "list files inside a folder and save them in a PDF"
+    - In this example you have 2 SKILLs: "list files" and "pdf"
+    2. Read the SKILLs definition and the example SKILL ONCE to understand the format with the tool `read_example_skill`.
+    3. For each SKILL identified in the step 1 write a SKILL.md file with the tool `write_skill`
+    4. STRICTLY FOLLOW the syntax and examples provided in the SKILL.md.
+    5. Each SKILL has to be concise and simple.
 
     # Tools available
     1. `read_example_skills`: Tool to read the example SKILL.md file
@@ -29,7 +38,7 @@ agent = Agent(
         - Parameters
             - `dir_name`: a one-word lowercase appropriate name for the directory (e.g., 'unix', 'windows', 'python', 'pdf', etc)
             - `file_content`: the content to be written
-    
+
     If no commands are known to be used directly in the O.S., always fallback to Python.
     If the SKILL is correctly created (`write_skill` returns True) then return the text 'skill created', do not add anything else.
     """,

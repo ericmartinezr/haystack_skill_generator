@@ -6,9 +6,10 @@ from haystack.core.super_component import SuperComponent
 from haystack_integrations.components.generators.ollama import OllamaChatGenerator
 from haystack.components.builders.chat_prompt_builder import ChatPromptBuilder
 from tools.read_skills import read_skills
+from constants import CHAT_GENERATOR_MODEL
 
 chat_generator = OllamaChatGenerator(
-    model="kimi-k2.5:cloud",
+    model=CHAT_GENERATOR_MODEL,
     timeout=360,
 )
 

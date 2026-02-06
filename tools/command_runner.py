@@ -7,6 +7,7 @@ from haystack.dataclasses import ChatMessage
 from haystack.core.super_component import SuperComponent
 from haystack_integrations.components.generators.ollama import OllamaChatGenerator
 from haystack.components.builders.chat_prompt_builder import ChatPromptBuilder
+from constants import CHAT_GENERATOR_MODEL
 
 WHITELIST_COMMANDS = [
     "ls",
@@ -23,7 +24,7 @@ WHITELIST_COMMANDS = [
 # TODO: Add blacklisted commands, basically the opposite of WHITELIST_COMMANDS
 BLACKLIST_COMMANDS = []
 
-BLACKLIST_FOLDERS = [".venv", "node_modules/", "__pycache__"]
+BLACKLIST_FOLDERS = [".venv", "node_modules/", "__pycache__", ".git"]
 
 
 # Algunos comandos validos para shell
@@ -73,7 +74,7 @@ def run_command(command: str) -> dict:
 
 
 chat_generator = OllamaChatGenerator(
-    model="kimi-k2.5:cloud",
+    model=CHAT_GENERATOR_MODEL,
     timeout=360,
 )
 

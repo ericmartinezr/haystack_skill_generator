@@ -3,6 +3,46 @@ from haystack.components.converters import MarkdownToDocument
 from haystack.components.writers import DocumentWriter
 from haystack.components.retrievers.in_memory import InMemoryBM25Retriever
 from haystack.document_stores.in_memory import InMemoryDocumentStore
+from haystack_integrations.document_stores.pgvector import PgvectorDocumentStore
+from haystack_integrations.components.retrievers.pgvector import PgvectorEmbeddingRetriever
+from haystack_integrations.components.embedders.ollama import OllamaDocumentEmbedder
+from haystack_integrations.components.embedders.ollama import OllamaTextEmbedder
+from haystack.components.preprocessors import DocumentCleaner
+from constants import EMBEDDING_MODEL
+from dotenv import load_dotenv
+
+load_dotenv()
+
+STORE = PgvectorDocumentStore(
+    embedding_dimension=768,
+    vector_function="cosine_similarity",
+    recreate_table=True,
+    search_strategy="exact_nearest_neighbor"
+)
+
+doc_embedder = OllamaDocumentEmbedder(
+    model=EMBEDDING_MODEL,
+    url="http://localhost:11434",
+    progress_bar=True,
+    generation_kwargs={
+        "temperature": 0.1
+    }
+)
+
+text_embedder = OllamaTextEmbedder(
+    model=EMBEDDING_MODEL,
+    url="http://localhost:11434",
+    generation_kwargs={
+        "temperature": 0.1
+    }
+)
+
+cleaner = DocumentCleaner()
+
+converter = MarkdownToDocument(
+    progress_bar=True,
+    store_full_path=True
+)
 
 
 @tool
@@ -15,20 +55,19 @@ def read_skill(sources: list[str], query: str) -> str:
     - query: The query to search for.
     """
     try:
-        store = InMemoryDocumentStore()
 
-        # Indexa los documentos
-        converter = MarkdownToDocument(
-            progress_bar=False,
-            store_full_path=True
-        )
         docs = converter.run(sources=sources)["documents"]
-        writer = DocumentWriter(document_store=store)
-        writer.run(documents=docs)
+        cleaned_docs = cleaner.run(documents=docs)["documents"]
+        embedded_docs = doc_embedder.run(documents=cleaned_docs)["documents"]
+        embedded_query = text_embedder.run(text=query)["embedding"]
+
+        writer = DocumentWriter(document_store=STORE)
+        writer.run(documents=embedded_docs)
 
         # Retorna los mas relevantes
-        retriever = InMemoryBM25Retriever(document_store=store, top_k=2)
-        result = retriever.run(query=query)
+        # retriever = InMemoryBM25Retriever(document_store=store, top_k=2)
+        retriever = PgvectorEmbeddingRetriever(document_store=STORE)
+        result = retriever.run(query_embedding=embedded_query)
 
         # Formatea la salida
         found_docs = result["documents"]
