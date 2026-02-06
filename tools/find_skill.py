@@ -17,9 +17,10 @@ agent = Agent(
     chat_generator=chat_generator,
     system_prompt="""
     You're a helpful AI agent expert on the SKILL definition developed by Anthropic.
-    Read the name and description returned by the tool `read_skills` and find the appropriate SKILL
-    for the user query.
-    Return the SKILL if found, otherwise return 'skill not found'.
+    Analyze the user query and identify which SKILL from the tool `read_skills`
+    solves it.
+    
+    Return the file path, name and description of the found skill, otherwise return 'skill not found'.
     """,
     tools=[read_skills],
     exit_conditions=["text"]
@@ -31,11 +32,7 @@ agent.warm_up()
 pipeline = Pipeline()
 pipeline.add_component("builder", ChatPromptBuilder(
     template=[
-        ChatMessage.from_user("""
-        <user_instructions>
-        {{query}}
-        </user_instructions>
-        """)
+        ChatMessage.from_user("{{query}}")
     ],
     required_variables=["query"]
 ))
@@ -65,7 +62,7 @@ find_skill = ComponentTool(
         "properties": {
             "query": {
                 "type": "string",
-                "description": "The user query"
+                "description": "The user simplified to find an appropriate skill"
             }
         }
     }

@@ -1,8 +1,6 @@
 from haystack.tools import tool
 from haystack.components.converters import MarkdownToDocument
 from haystack.components.writers import DocumentWriter
-from haystack.components.retrievers.in_memory import InMemoryBM25Retriever
-from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack_integrations.document_stores.pgvector import PgvectorDocumentStore
 from haystack_integrations.components.retrievers.pgvector import PgvectorEmbeddingRetriever
 from haystack_integrations.components.embedders.ollama import OllamaDocumentEmbedder
@@ -13,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-STORE = PgvectorDocumentStore(
+store = PgvectorDocumentStore(
     embedding_dimension=768,
     vector_function="cosine_similarity",
     recreate_table=True,
@@ -61,12 +59,11 @@ def read_skill(sources: list[str], query: str) -> str:
         embedded_docs = doc_embedder.run(documents=cleaned_docs)["documents"]
         embedded_query = text_embedder.run(text=query)["embedding"]
 
-        writer = DocumentWriter(document_store=STORE)
+        writer = DocumentWriter(document_store=store)
         writer.run(documents=embedded_docs)
 
         # Retorna los mas relevantes
-        # retriever = InMemoryBM25Retriever(document_store=store, top_k=2)
-        retriever = PgvectorEmbeddingRetriever(document_store=STORE)
+        retriever = PgvectorEmbeddingRetriever(document_store=store)
         result = retriever.run(query_embedding=embedded_query)
 
         # Formatea la salida

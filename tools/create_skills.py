@@ -20,7 +20,7 @@ chat_generator = OllamaChatGenerator(
 agent = Agent(
     chat_generator=chat_generator,
     system_prompt="""You're a helpful AI agent expert on Skills designed by Anthropic. 
-    Your job is to identify the SKILLs in the user query and create a SKILL.md file for each one.
+    Your job is to analyze the user query and identify the SKILL, then create a SKILL.md file for each one.
     A SKILL is anything that can be converted to code and reused.
     
     # Workflow
@@ -30,6 +30,7 @@ agent = Agent(
     2. Read the SKILLs definition and the example SKILL ONCE to understand the format with the tool `read_example_skill`.
     3. For each SKILL in step 1 write an independent SKILL.md file with the tool `write_skill`. Make them concise.
     4. STRICTLY FOLLOW the syntax and examples provided by the tool `read_example_skills`.
+    5. If the SKILL is correctly created (`write_skill` returns True) then return the text 'skill created', do not add anything else.
 
     # Tools available
     1. `read_example_skills`: Tool to read the example SKILL.md file
@@ -38,8 +39,9 @@ agent = Agent(
             - `dir_name`: a one-word lowercase appropriate name for the directory (e.g., 'unix', 'windows', 'python', 'pdf', etc)
             - `file_content`: the content to be written
 
-    If no commands are known to be used directly in the O.S., always fallback to Python.
-    If the SKILL is correctly created (`write_skill` returns True) then return the text 'skill created', do not add anything else.
+    # Constraints
+    - If the command can't be used directly in the O.S., awalys fallback to Python.
+    - The directory name and the 'name' property in the frontmatter must match.
     """,
     tools=[read_example_skills, write_skill],
     exit_conditions=["text"]
@@ -82,7 +84,7 @@ pipeline.add_component("builder", ChatPromptBuilder(
     template=[
         ChatMessage.from_user("""
         <skill_definition>
-        {{skill_definition}}
+        {{replies[0].text}}
         </skill_definition>
                               
         <user_instructions>
@@ -90,7 +92,7 @@ pipeline.add_component("builder", ChatPromptBuilder(
         </user_instructions>
         """)
     ],
-    required_variables=["skill_definition", "query"]
+    required_variables=["replies", "query"]
 ))
 pipeline.add_component("chat_summarizer", chat_generator)
 pipeline.add_component("agent", agent)
@@ -98,7 +100,7 @@ pipeline.add_component("agent", agent)
 pipeline.connect("fetcher.streams", "html.sources")
 pipeline.connect("html.documents", "summarizer.docs")
 pipeline.connect("summarizer.prompt", "chat_summarizer.messages")
-pipeline.connect("chat_summarizer.replies", "builder.skill_definition")
+pipeline.connect("chat_summarizer.replies", "builder.replies")
 pipeline.connect("builder.prompt", "agent.messages")
 
 

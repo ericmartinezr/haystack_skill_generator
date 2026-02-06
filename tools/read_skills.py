@@ -7,7 +7,7 @@ from constants import SKILLS_DIR
 @tool
 def read_skills() -> list[dict]:
     """
-    Read every skill and return its fronmatter (name and description)
+    Read every skill and return the file path, the name and description.
 
     Returns:
     - A list of dictionaries with the name and description for each SKILL
