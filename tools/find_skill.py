@@ -19,7 +19,7 @@ agent = Agent(
     You're a helpful AI agent expert on the SKILL definition developed by Anthropic.
     Read the name and description returned by the tool `read_skills` and find the appropriate SKILL
     for the user query.
-    If you find a SKILL return the data, otherwise return 'skill not found'.
+    Return the SKILL if found, otherwise return 'skill not found'.
     """,
     tools=[read_skills],
     exit_conditions=["text"]
@@ -65,7 +65,7 @@ find_skill = ComponentTool(
         "properties": {
             "query": {
                 "type": "string",
-                "description": "The user requirement"
+                "description": "The user query"
             }
         }
     }

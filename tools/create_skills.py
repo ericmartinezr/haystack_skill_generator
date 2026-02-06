@@ -24,13 +24,12 @@ agent = Agent(
     A SKILL is anything that can be converted to code and reused.
     
     # Workflow
-    1. Identify the SKILLs
+    1. Identify the SKILLs in the user query
     - For example: "list files inside a folder and save them in a PDF"
     - In this example you have 2 SKILLs: "list files" and "pdf"
     2. Read the SKILLs definition and the example SKILL ONCE to understand the format with the tool `read_example_skill`.
-    3. For each SKILL identified in the step 1 write a SKILL.md file with the tool `write_skill`
-    4. STRICTLY FOLLOW the syntax and examples provided in the SKILL.md.
-    5. Each SKILL has to be concise and simple.
+    3. For each SKILL in step 1 write an independent SKILL.md file with the tool `write_skill`. Make them concise.
+    4. STRICTLY FOLLOW the syntax and examples provided by the tool `read_example_skills`.
 
     # Tools available
     1. `read_example_skills`: Tool to read the example SKILL.md file
@@ -66,13 +65,24 @@ class FixedLinkContentFetcher:
 pipeline = Pipeline(max_runs_per_component=1)
 pipeline.add_component("fetcher", FixedLinkContentFetcher())
 pipeline.add_component("html", HTMLToDocument())
+pipeline.add_component("summarizer", ChatPromptBuilder(
+    template=[
+        ChatMessage.from_user("""
+        Consider the following definition about SKILLs (developed by Anthropic [Claude]).
+        You have to summarize it and return it in clear Markdown format.
+        <skill_definition>
+        {% for doc in docs %}
+            {{ doc.content }}
+        {% endfor %}                  
+        </skill_definition>
+        """)],
+    required_variables=["docs"]
+))
 pipeline.add_component("builder", ChatPromptBuilder(
     template=[
         ChatMessage.from_user("""
         <skill_definition>
-        {% for doc in docs %}
-            {{ doc.content }}
-        {% endfor %}
+        {{skill_definition}}
         </skill_definition>
                               
         <user_instructions>
@@ -80,12 +90,15 @@ pipeline.add_component("builder", ChatPromptBuilder(
         </user_instructions>
         """)
     ],
-    required_variables=["docs", "query"]
+    required_variables=["skill_definition", "query"]
 ))
+pipeline.add_component("chat_summarizer", chat_generator)
 pipeline.add_component("agent", agent)
 
 pipeline.connect("fetcher.streams", "html.sources")
-pipeline.connect("html.documents", "builder.docs")
+pipeline.connect("html.documents", "summarizer.docs")
+pipeline.connect("summarizer.prompt", "chat_summarizer.messages")
+pipeline.connect("chat_summarizer.replies", "builder.skill_definition")
 pipeline.connect("builder.prompt", "agent.messages")
 
 
